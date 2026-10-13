@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>BYTE CLOUD</title>
+    <meta name="description" content="High-performance personal cloud, media gallery, and encrypted companion client for self-hosted external storage over Tailscale." />
+    <meta property="og:title" content="BYTE CLOUD" />
+    <meta property="og:description" content="High-performance personal cloud, media gallery, and encrypted companion client for self-hosted external storage over Tailscale." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Suppress Vite HMR socket errors in sandbox container where HMR is disabled -->
+    <script>
+      (function() {
+        if (typeof window === 'undefined') return;
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event?.reason?.message && event.reason.message.includes('WebSocket closed without opened')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        });
+        if (!window.WebSocket) return;
+        const NativeWebSocket = window.WebSocket;
+        class MockViteHmrSocket extends EventTarget {
+          constructor(url, protocols) {
+            super();
+            this.url = url;
+            this.protocols = protocols;
+            this.readyState = 1;
+            this.CONNECTING = 0;
+            this.OPEN = 1;
+            this.CLOSING = 2;
+            this.CLOSED = 3;
+            setTimeout(() => {
+              this.dispatchEvent(new Event('open'));
+            }, 10);
+          }
+          send() {}
+          close() {
+            this.readyState = 3;
+            this.dispatchEvent(new CloseEvent('close', { wasClean: true }));
+          }
+        }
+        MockViteHmrSocket.CONNECTING = 0;
+        MockViteHmrSocket.OPEN = 1;
+        MockViteHmrSocket.CLOSING = 2;
+        MockViteHmrSocket.CLOSED = 3;
+
+        window.WebSocket = function(url, protocols) {
+          if (protocols === 'vite-hmr' || (typeof url === 'string' && (url.includes('token=') || url.includes(':24678')))) {
+            return new MockViteHmrSocket(url, protocols);
+          }
+          return new NativeWebSocket(url, protocols);
+        };
+        Object.assign(window.WebSocket, NativeWebSocket);
+        window.WebSocket.prototype = NativeWebSocket.prototype;
+      })();
+    </script>
+
+    <!-- Mobile & PWA Enhancements -->
+    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BYTE CLOUD" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+
+    <!-- Google Fonts: Alfa Slab One (Collosalis-style geometric slab-serif) + Outfit + JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#0a0a0c] text-[#f4f4f6] selection:bg-cyan-500/20 selection:text-cyan-300 antialiased overflow-x-hidden min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

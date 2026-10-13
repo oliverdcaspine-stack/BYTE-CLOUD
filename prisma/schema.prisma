@@ -1,0 +1,194 @@
+// Prisma schema for BYTE CLOUD
+// Type-safe schema for PostgreSQL with robust relational mapping
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+  GUEST
+}
+
+enum StorageHealth {
+  HEALTHY
+  WARNING
+  CRITICAL
+  OFFLINE
+}
+
+enum UploadStatus {
+  INITIALIZED
+  UPLOADING
+  COMPLETED
+  FAILED
+  ABORTED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  folders      Folder[]
+  files        FileItem[]
+  devices      Device[]
+  uploadSessions UploadSession[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Device {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName     String
+  tailscaleIp    String?
+  clientOs       String?
+  e2eePublicKey  String?
+  lastActiveAt   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model Folder {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  parentId    String?
+  parent      Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[]   @relation("FolderHierarchy")
+  path        String     // e.g. /vault/documents/2026
+  isEncrypted Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  files       FileItem[]
+
+  @@unique([userId, parentId, name])
+  @@index([userId, parentId])
+  @@map("folders")
+}
+
+model FileItem {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId        String?
+  folder          Folder?        @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  name            String
+  originalName    String
+  mimeType        String
+  sizeBytes       BigInt
+  storageDiskPath String         // Physical path on external disk: /mnt/external_storage/...
+  isEncrypted     Boolean        @default(false)
+  
+  // Client-Side E2EE Metadata
+  e2eeIv          String?        // Base64 Initialization Vector (12 bytes for AES-GCM)
+  e2eeSalt        String?        // Base64 PBKDF2 salt
+  e2eeAuthTag     String?        // Base64 GCM authentication tag
+  sha256Checksum  String?
+  
+  isFavorite      Boolean        @default(false)
+  isDeleted       Boolean        @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  mediaMetadata   MediaMetadata?
+  uploadSession   UploadSession?
+
+  @@index([userId, folderId])
+  @@index([mimeType])
+  @@index([createdAt])
+  @@map("files")
+}
+
+model MediaMetadata {
+  id              String    @id @default(uuid())
+  fileId          String    @unique
+  file            FileItem  @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  
+  width           Int?
+  height          Int?
+  durationSeconds Float?
+  
+  // Camera & EXIF details
+  cameraMake      String?
+  cameraModel     String?
+  lens            String?
+  iso             Int?
+  shutterSpeed    String?
+  focalLength     String?
+  aperture        String?
+  
+  // Geolocation
+  latitude        Float?
+  longitude       Float?
+  locationName    String?
+  
+  takenAt         DateTime?
+  colorProfile    String?
+
+  @@map("media_metadata")
+}
+
+model StorageDisk {
+  id              String        @id @default(uuid())
+  mountPath       String        @unique // e.g. /mnt/external_storage/500gb_ext
+  label           String        // e.g. "External WD 500GB HDD"
+  totalBytes      BigInt        // 500 * 1024 * 1024 * 1024
+  usedBytes       BigInt
+  filesystemType  String        @default("ext4") // ext4, zfs, btrfs
+  healthStatus    StorageHealth @default(HEALTHY)
+  isMounted       Boolean       @default(true)
+  lastScannedAt   DateTime      @default(now())
+
+  @@map("storage_disks")
+}
+
+model UploadSession {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileId          String?      @unique
+  file            FileItem?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  fileName        String
+  fileSize        BigInt
+  totalChunks     Int
+  uploadedChunks  Int          @default(0)
+  status          UploadStatus @default(INITIALIZED)
+  tempChunkDir    String
+  expiresAt       DateTime
+  createdAt       DateTime     @default(now())
+
+  @@index([userId, status])
+  @@map("upload_sessions")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "FILE_UPLOAD", "FILE_DOWNLOAD", "E2EE_REENCRYPT"
+  ipAddress String?
+  details   String?  // JSON string
+  createdAt DateTime @default(now())
+
+  @@index([userId, action])
+  @@map("audit_logs")
+}

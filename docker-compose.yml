@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  byte-cloud:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: byte-cloud-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://bytecloud:bytecloud_secret@postgres:5432/bytecloud_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=bytecloud_prod_jwt_supersecret_change_me_in_prod
+      - STORAGE_MOUNT_PATH=/mnt/storage/500gb_ext
+      - TAILSCALE_HOST=bytecloud.tailscale.net
+      - CORS_ORIGINS=https://bytecloud.tailscale.net,https://oliverdcaspine.github.io
+    volumes:
+      # Mount the physical external 500GB hard drive
+      - /mnt/storage/500gb_ext:/mnt/storage/500gb_ext:rw
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: byte-cloud-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=bytecloud
+      - POSTGRES_PASSWORD=bytecloud_secret
+      - POSTGRES_DB=bytecloud_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bytecloud -d bytecloud_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: byte-cloud-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

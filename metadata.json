@@ -1,0 +1,6 @@
+{
+  "name": "BYTE CLOUD",
+  "description": "High-performance personal cloud, media gallery, and encrypted companion client for self-hosted external storage over Tailscale.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
