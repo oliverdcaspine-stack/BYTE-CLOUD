@@ -1,11 +1,12 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
-import {VitePWA} from 'vite-plugin-pwa';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
+    base: '/BYTE-CLOUD/', // <--- Added this line here for GitHub Pages!
     plugins: [
       react(),
       tailwindcss(),
@@ -16,7 +17,7 @@ export default defineConfig(() => {
           id: '/',
           name: 'BYTE CLOUD',
           short_name: 'BYTE CLOUD',
-          description: 'High-performance personal cloud, media gallery, and encrypted companion client for self-hosted external storage over Tailscale.',
+          description: 'High-performance personal cloud, media gallery, and encrypted companion client for self-hosted external storage over Tailscale',
           theme_color: '#0a0a0c',
           background_color: '#0a0a0c',
           display: 'standalone',
@@ -51,7 +52,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
       },
     },
     server: {
